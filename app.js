@@ -215,9 +215,9 @@ const bottleMaterials = {};
 function initMaterials(labelTexture) {
   hdpeNormalMap = generateHDPETexture();
   
-  // 1. Bottle/Drum materials (vivid cobalt blue HDPE)
+  // 1. Bottle/Drum materials (organic color palette)
   bottleMaterials.matte = new THREE.MeshPhysicalMaterial({
-    color: 0x0d47a1,
+    color: 0x879882, // Verde Salvia
     roughness: 0.55,
     metalness: 0.1,
     normalMap: hdpeNormalMap,
@@ -228,7 +228,7 @@ function initMaterials(labelTexture) {
   });
 
   bottleMaterials.glossy = new THREE.MeshPhysicalMaterial({
-    color: 0x1976d2,
+    color: 0x758e4f, // Verde Hoja
     roughness: 0.12,
     metalness: 0.12,
     normalMap: hdpeNormalMap,
@@ -239,7 +239,7 @@ function initMaterials(labelTexture) {
   });
 
   bottleMaterials.green = new THREE.MeshPhysicalMaterial({
-    color: 0x00c853, /* Vivid Green */
+    color: 0x758e4f, /* Verde Hoja Translúcido */
     roughness: 0.25,
     metalness: 0.05,
     transmission: 0.6,
@@ -250,7 +250,7 @@ function initMaterials(labelTexture) {
   });
 
   bottleMaterials.amber = new THREE.MeshPhysicalMaterial({
-    color: 0xff6d00, /* Vivid Orange/Amber */
+    color: 0xd4c5a9, /* Beige Claro Translúcido */
     roughness: 0.2,
     metalness: 0.05,
     transmission: 0.85,

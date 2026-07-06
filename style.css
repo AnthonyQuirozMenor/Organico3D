@@ -3,21 +3,21 @@
    ========================================================================== */
 
 :root {
-  --bg-dark: #070a0e;
-  --bg-darker: #040508;
-  --panel-bg: rgba(10, 16, 24, 0.72);
+  --bg-dark: #161a17;       /* Muted dark organic green-grey */
+  --bg-darker: #0e110f;     /* Deeper organic green-grey */
+  --panel-bg: rgba(22, 28, 23, 0.76); /* Muted glassmorphic sage-panel */
   --panel-border: rgba(255, 255, 255, 0.08);
-  --panel-highlight: rgba(30, 136, 229, 0.16);
+  --panel-highlight: rgba(117, 142, 79, 0.16); /* Verde Hoja highlight */
   
-  --accent-green: #1e88e5; /* Shifted to vivid blue */
-  --accent-green-glow: rgba(30, 136, 229, 0.45);
-  --accent-green-light: #64b5f6;
-  --accent-earth: #f57c00; /* Vivid orange accent */
-  --accent-gold: #ffb300;  /* Vivid gold accent */
+  --accent-green: #758e4f;  /* Verde Hoja */
+  --accent-green-glow: rgba(117, 142, 79, 0.45);
+  --accent-green-light: #879882; /* Verde Salvia */
+  --accent-earth: #d4c5a9;  /* Beige Claro */
+  --accent-gold: #d4c5a9;   /* Beige Claro for highlights */
   
-  --text-primary: #f6f8fa;
-  --text-secondary: #b0bec5;
-  --text-muted: #607d8b;
+  --text-primary: #f2ebd9;  /* Crema Natural */
+  --text-secondary: #c5cdb8; /* Muted Crema/Sage */
+  --text-muted: #838e78;
   
   --sidebar-width: 420px;
   --header-height: 80px;
@@ -309,7 +309,7 @@ body, html {
 }
 
 .quick-controls.collapsed {
-  transform: translate(-50%, calc(100% + 24px - 14px));
+  transform: translate(-50%, calc(100% + 24px - 28px));
 }
 
 .btn-toggle-ui {
@@ -596,7 +596,7 @@ body, html {
   }
 
   .quick-controls.collapsed {
-    transform: translate(-50%, calc(100% + 16px - 14px));
+    transform: translate(-50%, calc(100% + 16px - 28px));
   }
   
   .control-grid-bottom {
@@ -620,7 +620,7 @@ body, html {
   }
   
   .quick-controls.collapsed {
-    transform: translate(-50%, calc(100% + 12px - 14px));
+    transform: translate(-50%, calc(100% + 12px - 28px));
   }
 
   .control-row {
