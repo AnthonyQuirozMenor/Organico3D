@@ -292,7 +292,7 @@ body, html {
   position: absolute;
   bottom: 24px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 0);
   width: 92%;
   max-width: 960px;
   background: rgba(5, 8, 12, 0.82);
@@ -305,7 +305,46 @@ body, html {
   gap: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
   z-index: 10;
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.3s, border-color 0.3s;
+}
+
+.quick-controls.collapsed {
+  transform: translate(-50%, calc(100% + 24px - 14px));
+}
+
+.btn-toggle-ui {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(5, 8, 12, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.4);
   transition: var(--transition-smooth);
+  z-index: 12;
+}
+
+.btn-toggle-ui:hover {
+  background: #1e88e5;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(30, 136, 229, 0.6);
+}
+
+.chevron-ui {
+  transition: transform 0.4s ease;
+}
+
+.quick-controls.collapsed .chevron-ui {
+  transform: rotate(180deg);
 }
 
 /* Row 1: Flex row for main controls */
@@ -529,29 +568,35 @@ body, html {
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   #app-container {
-    flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
+    height: 100vh;
+    position: relative;
   }
   
   .viewport-container {
-    height: 55vh;
-    min-height: 300px;
-    flex: none;
+    height: 100vh;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
   }
   
   .quick-controls {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    transform: none;
-    width: 100%;
-    max-width: 100%;
-    border-radius: 0;
-    border: none;
-    border-top: 1px solid var(--panel-border);
-    padding: 16px;
-    box-shadow: none;
-    background: var(--bg-darker);
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    width: 94%;
+    padding: 14px;
+    z-index: 10;
+    background: rgba(5, 8, 12, 0.9);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  .quick-controls.collapsed {
+    transform: translate(-50%, calc(100% + 16px - 14px));
   }
   
   .control-grid-bottom {
@@ -569,10 +614,19 @@ body, html {
 }
 
 @media (max-width: 768px) {
+  .quick-controls {
+    width: 96%;
+    bottom: 12px;
+  }
+  
+  .quick-controls.collapsed {
+    transform: translate(-50%, calc(100% + 12px - 14px));
+  }
+
   .control-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 8px;
   }
   
   .slider-container-inline {
@@ -583,7 +637,7 @@ body, html {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
   
   .btn-toggle {
@@ -592,7 +646,7 @@ body, html {
   
   .control-grid-bottom {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
   
   .control-group:last-child {
@@ -601,13 +655,8 @@ body, html {
 }
 
 @media (max-width: 480px) {
-  .viewport-container {
-    height: 48vh;
-    min-height: 250px;
-  }
-  
   .camera-presets, .presets-row {
-    grid-template-columns: repeat(2, 1fr); /* 2x2 grids on small screens */
+    grid-template-columns: repeat(2, 1fr);
     gap: 4px;
   }
   

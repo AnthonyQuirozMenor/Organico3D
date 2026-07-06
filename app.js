@@ -45,7 +45,8 @@ const ui = {
   materialBtns: document.querySelectorAll('.btn-material'),
   lightBtns: document.querySelectorAll('.btn-light'),
   tabs: document.querySelectorAll('.tab-btn'),
-  tabContents: document.querySelectorAll('.tab-content')
+  tabContents: document.querySelectorAll('.tab-content'),
+  toggleUiBtn: document.getElementById('toggle-ui')
 };
 
 // ==========================================================================
@@ -1251,6 +1252,20 @@ function setupUIBindings() {
       updateLightingSetup(lightName);
     });
   });
+
+  // Toggle UI Panel Visibility (Focus Mode)
+  if (ui.toggleUiBtn) {
+    ui.toggleUiBtn.addEventListener('click', () => {
+      const panel = document.querySelector('.quick-controls');
+      panel.classList.toggle('collapsed');
+      
+      if (panel.classList.contains('collapsed')) {
+        ui.toggleUiBtn.setAttribute('title', 'Mostrar opciones');
+      } else {
+        ui.toggleUiBtn.setAttribute('title', 'Ocultar opciones');
+      }
+    });
+  }
 }
 
 // ==========================================================================
