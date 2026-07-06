@@ -214,32 +214,32 @@ const bottleMaterials = {};
 function initMaterials(labelTexture) {
   hdpeNormalMap = generateHDPETexture();
   
-  // 1. Bottle materials
+  // 1. Bottle/Drum materials (vivid cobalt blue HDPE)
   bottleMaterials.matte = new THREE.MeshPhysicalMaterial({
-    color: 0x101210,
-    roughness: 0.65,
+    color: 0x0d47a1,
+    roughness: 0.55,
     metalness: 0.1,
     normalMap: hdpeNormalMap,
-    normalScale: new THREE.Vector2(0.1, 0.1),
-    clearcoat: 0.1,
-    clearcoatRoughness: 0.8,
+    normalScale: new THREE.Vector2(0.08, 0.08),
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.6,
     side: THREE.DoubleSide
   });
 
   bottleMaterials.glossy = new THREE.MeshPhysicalMaterial({
-    color: 0x070807,
-    roughness: 0.15,
-    metalness: 0.15,
+    color: 0x1976d2,
+    roughness: 0.12,
+    metalness: 0.12,
     normalMap: hdpeNormalMap,
-    normalScale: new THREE.Vector2(0.04, 0.04),
+    normalScale: new THREE.Vector2(0.03, 0.03),
     clearcoat: 0.8,
-    clearcoatRoughness: 0.2,
+    clearcoatRoughness: 0.15,
     side: THREE.DoubleSide
   });
 
   bottleMaterials.green = new THREE.MeshPhysicalMaterial({
-    color: 0x2e7d32,
-    roughness: 0.3,
+    color: 0x00c853, /* Vivid Green */
+    roughness: 0.25,
     metalness: 0.05,
     transmission: 0.6,
     thickness: 0.25,
@@ -249,7 +249,7 @@ function initMaterials(labelTexture) {
   });
 
   bottleMaterials.amber = new THREE.MeshPhysicalMaterial({
-    color: 0xbf360c,
+    color: 0xff6d00, /* Vivid Orange/Amber */
     roughness: 0.2,
     metalness: 0.05,
     transmission: 0.85,
@@ -259,11 +259,11 @@ function initMaterials(labelTexture) {
     side: THREE.DoubleSide
   });
 
-  // Cap material
+  // Cap material (matte black drum lid)
   bottleMaterials.cap = new THREE.MeshPhysicalMaterial({
-    color: 0x1c3820,
-    roughness: 0.45,
-    metalness: 0.15,
+    color: 0x111111,
+    roughness: 0.55,
+    metalness: 0.1,
     clearcoat: 0.1,
     side: THREE.DoubleSide
   });
@@ -297,31 +297,31 @@ function buildBottle() {
   const segments = 64;
   const profileSteps = 80;
   
-  // Define profile curve for circular timbo with grooves
+  // Define profile curve for plastic drum with outward rolling hoops (anillos de rodadura)
   for (let i = 0; i <= profileSteps; i++) {
     const y = -2.1 + (i / profileSteps) * 4.2;
-    let r = 1.15; // Base radius for circular timbo
+    let r = 1.15; // Base radius for the drum
     
     // Base curve
-    if (y < -1.9) {
-      const t = (y + 2.1) / 0.2;
+    if (y < -1.95) {
+      const t = (y + 2.1) / 0.15;
       r = THREE.MathUtils.lerp(0.95, 1.15, t);
     }
     // Shoulder curve
-    else if (y > 1.9) {
-      const t = (2.1 - y) / 0.2;
-      r = THREE.MathUtils.lerp(0.85, 1.15, t);
+    else if (y > 1.95) {
+      const t = (2.1 - y) / 0.15;
+      r = THREE.MathUtils.lerp(0.95, 1.15, t);
     }
-    // Grooves/Ribs
-    // Groove 1 (Bottom half)
-    else if (y > -1.0 && y < -0.8) {
-      const t = Math.abs(y - (-0.9)) / 0.1;
-      r = THREE.MathUtils.lerp(1.08, 1.15, t);
+    // Outward Projecting Ribs/Hoops
+    // Hoop 1 (Bottom half)
+    else if (y > -0.95 && y < -0.55) {
+      const t = Math.abs(y - (-0.75)) / 0.2;
+      r = THREE.MathUtils.lerp(1.24, 1.15, Math.min(t, 1));
     }
-    // Groove 2 (Top half)
-    else if (y > 0.8 && y < 1.0) {
-      const t = Math.abs(y - 0.9) / 0.1;
-      r = THREE.MathUtils.lerp(1.08, 1.15, t);
+    // Hoop 2 (Top half)
+    else if (y > 0.55 && y < 0.95) {
+      const t = Math.abs(y - 0.75) / 0.2;
+      r = THREE.MathUtils.lerp(1.24, 1.15, Math.min(t, 1));
     }
     
     points.push(new THREE.Vector2(r, y));
@@ -329,14 +329,14 @@ function buildBottle() {
   
   const geomBody = new THREE.LatheGeometry(points, segments);
 
-  // 2. Back Jerrycan Shell (uses clipPlaneBack)
+  // 2. Back Shell (uses clipPlaneBack)
   bottleBack = new THREE.Mesh(geomBody, bottleMaterials.matte);
   bottleBack.castShadow = true;
   bottleBack.receiveShadow = true;
   bottleBack.material.clippingPlanes = [clipPlaneBack];
   scene.add(bottleBack);
 
-  // 3. Front Jerrycan Shell (Cutaway panel - uses clipPlaneFront and cloned material)
+  // 3. Front Shell (Cutaway panel - uses clipPlaneFront and cloned material)
   bottleFront = new THREE.Mesh(geomBody, bottleMaterials.matte.clone());
   bottleFront.castShadow = true;
   bottleFront.receiveShadow = true;
@@ -347,58 +347,75 @@ function buildBottle() {
   frontGroup.add(bottleFront);
   scene.add(frontGroup);
 
-  // 4. Asymmetric Spout / Neck (shifted to the left at x = -0.5)
-  neck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.4, 32), bottleMaterials.matte);
-  neck.position.set(-0.5, 2.2, 0);
+  // 4. Central Large Spout / Neck (centered on top at x = 0)
+  neck = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 32), bottleMaterials.cap);
+  neck.position.set(0, 2.1, 0);
   neck.castShadow = true;
   neck.receiveShadow = true;
   scene.add(neck);
 
-  // 5. Large dark green Screw Cap (sits on top of the spout at x = -0.5)
+  // 5. Large Black screw cap (sits on top of the spout at x = 0)
   cap = new THREE.Group();
-  const capBaseGeom = new THREE.CylinderGeometry(0.33, 0.33, 0.35, 32);
+  const capBaseGeom = new THREE.CylinderGeometry(0.46, 0.46, 0.22, 32);
   const capBase = new THREE.Mesh(capBaseGeom, bottleMaterials.cap);
   capBase.castShadow = true;
   cap.add(capBase);
 
-  // Add vertical ridges/ribs to the green cap
-  const ribCount = 24;
-  const ribGeom = new THREE.BoxGeometry(0.015, 0.32, 0.015);
+  // Add vertical ridges/ribs to the black lid
+  const ribCount = 30;
+  const ribGeom = new THREE.BoxGeometry(0.015, 0.2, 0.015);
   for (let i = 0; i < ribCount; i++) {
     const rib = new THREE.Mesh(ribGeom, bottleMaterials.cap);
     const angle = (i / ribCount) * Math.PI * 2;
-    rib.position.set(Math.cos(angle) * 0.34, 0, Math.sin(angle) * 0.34);
+    rib.position.set(Math.cos(angle) * 0.47, 0, Math.sin(angle) * 0.47);
     rib.rotation.y = -angle;
     rib.castShadow = true;
     cap.add(rib);
   }
-  cap.position.set(-0.5, 2.45, 0);
+  cap.position.set(0, 2.2, 0);
   scene.add(cap);
 
-  // 6. Jerrycan Handle (loop handle on the top right side along the Z axis)
-  const handlePoints = [];
-  handlePoints.push(new THREE.Vector3(0.4, 2.1, -0.4));
-  handlePoints.push(new THREE.Vector3(0.4, 2.42, -0.2));
-  handlePoints.push(new THREE.Vector3(0.4, 2.42, 0.2));
-  handlePoints.push(new THREE.Vector3(0.4, 2.1, 0.4));
+  // 6. Dual Side Handles (two black loop handles on left and right shoulder)
+  // Left Handle
+  const leftHandlePoints = [];
+  leftHandlePoints.push(new THREE.Vector3(-1.08, 1.8, 0));
+  leftHandlePoints.push(new THREE.Vector3(-1.26, 1.65, 0));
+  leftHandlePoints.push(new THREE.Vector3(-1.08, 1.5, 0));
+  const leftHandleCurve = new THREE.CatmullRomCurve3(leftHandlePoints);
+  const leftHandleGeom = new THREE.TubeGeometry(leftHandleCurve, 10, 0.07, 12, false);
+  const leftHandle = new THREE.Mesh(leftHandleGeom, bottleMaterials.cap);
+  leftHandle.castShadow = true;
+  leftHandle.receiveShadow = true;
+  scene.add(leftHandle);
 
-  const handleCurve = new THREE.CatmullRomCurve3(handlePoints);
-  const handleGeom = new THREE.TubeGeometry(handleCurve, 20, 0.09, 12, false);
-  handleMesh = new THREE.Mesh(handleGeom, bottleMaterials.matte);
-  handleMesh.castShadow = true;
-  handleMesh.receiveShadow = true;
+  // Right Handle
+  const rightHandlePoints = [];
+  rightHandlePoints.push(new THREE.Vector3(1.08, 1.8, 0));
+  rightHandlePoints.push(new THREE.Vector3(1.26, 1.65, 0));
+  rightHandlePoints.push(new THREE.Vector3(1.08, 1.5, 0));
+  const rightHandleCurve = new THREE.CatmullRomCurve3(rightHandlePoints);
+  const rightHandleGeom = new THREE.TubeGeometry(rightHandleCurve, 10, 0.07, 12, false);
+  const rightHandle = new THREE.Mesh(rightHandleGeom, bottleMaterials.cap);
+  rightHandle.castShadow = true;
+  rightHandle.receiveShadow = true;
+  scene.add(rightHandle);
+  
+  // Save references for update rotations in render loop
+  handleMesh = new THREE.Group();
+  handleMesh.add(leftHandle);
+  handleMesh.add(rightHandle);
   scene.add(handleMesh);
 
-  // 7. Labels (wrap-around cylinder sections mapped to front/back)
+  // 7. Labels (placed inside the recessed channel of the drum body)
   // Back Label
-  const labelGeomBack = new THREE.CylinderGeometry(1.155, 1.155, 1.8, 64, 1, true, -Math.PI / 2, Math.PI);
+  const labelGeomBack = new THREE.CylinderGeometry(1.155, 1.155, 1.4, 64, 1, true, -Math.PI / 2, Math.PI);
   adjustLabelUVs(labelGeomBack, true);
   labelBack = new THREE.Mesh(labelGeomBack, bottleMaterials.label);
   labelBack.receiveShadow = true;
   scene.add(labelBack);
   
   // Front Label
-  const labelGeomFront = new THREE.CylinderGeometry(1.155, 1.155, 1.8, 64, 1, true, Math.PI / 2, Math.PI);
+  const labelGeomFront = new THREE.CylinderGeometry(1.155, 1.155, 1.4, 64, 1, true, Math.PI / 2, Math.PI);
   adjustLabelUVs(labelGeomFront, false);
   labelFront = new THREE.Mesh(labelGeomFront, bottleMaterials.label);
   labelFront.castShadow = true;
@@ -472,9 +489,8 @@ function buildOrganicLayers() {
     const yMax = yMin + layerHeight;
     const yCenter = yMin + (layerHeight / 2);
     
-    // jerrycan inner cavity dimensions: width 2.2, depth 1.2.
-    // layers should be slightly smaller: width 2.05, depth 1.15
-    const layerGeom = createLayerGeometry(2.05, 1.15, layerHeight, 0.1);
+    // Drum inner cavity: cylinder layer
+    const layerGeom = new THREE.CylinderGeometry(1.08, 1.08, layerHeight, 32);
     
     const textures = createOrganicTexture(i);
     const layerMat = new THREE.MeshStandardMaterial({
@@ -506,10 +522,12 @@ function scatterLayerParticles(layerIdx, yMin, yMax) {
   const pCount = [35, 45, 30, 25, 45, 80, 20, 25, 30, 35][layerIdx];
   
   for (let k = 0; k < pCount; k++) {
-    // Scatter inside a box (width = 2.05, depth = 1.15)
-    // Constrain random positions near the front face (Z > 0) to be visible during cutaway
-    const x = (Math.random() - 0.5) * 1.8;
-    const z = Math.random() * 0.52; // front hemisphere (Z: 0 to 0.52)
+    // Scatter in polar coords for cylinder (front hemisphere Z > 0)
+    const theta = Math.random() * Math.PI; // front side (0 to 180 degrees)
+    const radFactor = 0.2 + Math.random() * 0.75;
+    const r = 1.08 * radFactor;
+    const x = Math.cos(theta) * r;
+    const z = Math.sin(theta) * r;
     const y = yMin + Math.random() * (yMax - yMin);
     
     let geom, mat, mesh;
@@ -1214,7 +1232,11 @@ function setupUIBindings() {
       bottleFront.material.clippingPlanes = [clipPlaneFront];
       
       if (neck) neck.material = newMat;
-      if (handleMesh) handleMesh.material = newMat;
+      if (handleMesh) {
+        handleMesh.children.forEach(child => {
+          child.material = newMat;
+        });
+      }
     });
   });
 
