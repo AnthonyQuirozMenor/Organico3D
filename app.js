@@ -6,9 +6,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // ==========================================================================
 let scene, camera, renderer, controls;
 let bottleBack, bottleFront, cap, labelBack, labelFront;
+let neck, handleMesh;
 let frontGroup; // Group containing front panel and front label for easy animation
 let layersGroup, particlesGroup, wormsGroup;
 let ambientLight, dirLight1, dirLight2, spotLight;
+
+// Clipping planes for jerrycan cutaway
+const localPlaneBack = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0.0);
+const localPlaneFront = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.0);
+const clipPlaneBack = new THREE.Plane();
+const clipPlaneFront = new THREE.Plane();
 
 // State management
 const state = {
@@ -273,6 +280,12 @@ function initMaterials(labelTexture) {
     bumpScale: 0.01,
     side: THREE.DoubleSide
   });
+
+  // Assign clipping planes to bottle materials (for back half by default)
+  bottleMaterials.matte.clippingPlanes = [clipPlaneBack];
+  bottleMaterials.glossy.clippingPlanes = [clipPlaneBack];
+  bottleMaterials.green.clippingPlanes = [clipPlaneBack];
+  bottleMaterials.amber.clippingPlanes = [clipPlaneBack];
 }
 
 // ==========================================================================
@@ -280,87 +293,115 @@ function initMaterials(labelTexture) {
 // ==========================================================================
 
 function buildBottle() {
-  const points = [];
-  const segments = 64;
-  
-  // Define profile curve matching getBottleRadiusAtHeight
-  const profileSteps = 80;
-  for (let i = 0; i <= profileSteps; i++) {
-    const y = -4.0 + (i / profileSteps) * 8.2;
-    const r = getBottleRadiusAtHeight(y);
-    points.push(new THREE.Vector2(r, y));
+  // Helpers to draw rounded rectangle in 2D
+  function createRoundedRectShape(w, h, r) {
+    const shape = new THREE.Shape();
+    shape.moveTo(-w/2 + r, -h/2);
+    shape.lineTo(w/2 - r, -h/2);
+    shape.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + r);
+    shape.lineTo(w/2, h/2 - r);
+    shape.quadraticCurveTo(w/2, h/2, w/2 - r, h/2);
+    shape.lineTo(-w/2 + r, h/2);
+    shape.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - r);
+    shape.lineTo(-w/2, -h/2 + r);
+    shape.quadraticCurveTo(-w/2, -h/2, -w/2 + r, -h/2);
+    return shape;
   }
-  
-  // 1. Back Bottle Shell (Matte Black, phi 90 to 270)
-  const geomBack = new THREE.LatheGeometry(points, segments, -Math.PI / 2, Math.PI);
-  // Squash on Z-axis for ergonomic flat shape
-  geomBack.scale(1, 1, 0.65);
-  bottleBack = new THREE.Mesh(geomBack, bottleMaterials.matte);
+
+  function createJerrycanGeometry(w, h, d, r) {
+    const shape = createRoundedRectShape(w, h, r);
+    const extrudeSettings = {
+      steps: 1,
+      depth: d - r * 2,
+      bevelEnabled: true,
+      bevelThickness: r,
+      bevelSize: r,
+      bevelOffset: 0,
+      bevelSegments: 4
+    };
+    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geom.center();
+    return geom;
+  }
+
+  // 1. Jerrycan Body Geometry (dimensions: width = 2.4, height = 4.2, depth = 1.4, radius = 0.15)
+  const geomBody = createJerrycanGeometry(2.4, 4.2, 1.4, 0.15);
+
+  // 2. Back Jerrycan Shell (uses clipPlaneBack)
+  bottleBack = new THREE.Mesh(geomBody, bottleMaterials.matte);
   bottleBack.castShadow = true;
   bottleBack.receiveShadow = true;
+  bottleBack.material.clippingPlanes = [clipPlaneBack];
   scene.add(bottleBack);
-  
-  // 2. Front Bottle Shell (Cutaway panel, phi 270 to 90)
-  const geomFront = new THREE.LatheGeometry(points, segments, Math.PI / 2, Math.PI);
-  geomFront.scale(1, 1, 0.65);
-  bottleFront = new THREE.Mesh(geomFront, bottleMaterials.matte);
+
+  // 3. Front Jerrycan Shell (Cutaway panel - uses clipPlaneFront and cloned material)
+  bottleFront = new THREE.Mesh(geomBody, bottleMaterials.matte.clone());
   bottleFront.castShadow = true;
   bottleFront.receiveShadow = true;
-  
+  bottleFront.material.clippingPlanes = [clipPlaneFront];
+
   // Group for the sliding cutaway assembly
   frontGroup = new THREE.Group();
   frontGroup.add(bottleFront);
   scene.add(frontGroup);
-  
-  // 3. Large green Screw Cap (Upper cap cylindrical with vertical grooves)
+
+  // 4. Asymmetric Spout / Neck (shifted to the left at x = -0.7)
+  neck = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.4, 32), bottleMaterials.matte);
+  neck.position.set(-0.7, 2.2, 0);
+  neck.castShadow = true;
+  neck.receiveShadow = true;
+  scene.add(neck);
+
+  // 5. Large dark green Screw Cap (sits on top of the spout at x = -0.7)
   cap = new THREE.Group();
-  const capBaseGeom = new THREE.CylinderGeometry(0.85, 0.85, 0.6, 32);
+  const capBaseGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.35, 32);
   const capBase = new THREE.Mesh(capBaseGeom, bottleMaterials.cap);
   capBase.castShadow = true;
   cap.add(capBase);
-  
-  // Add ribs (vertical lines) to cap
-  const ribCount = 36;
-  const ribGeom = new THREE.BoxGeometry(0.03, 0.55, 0.03);
+
+  // Add vertical ridges/ribs to the green cap
+  const ribCount = 24;
+  const ribGeom = new THREE.BoxGeometry(0.015, 0.32, 0.015);
   for (let i = 0; i < ribCount; i++) {
     const rib = new THREE.Mesh(ribGeom, bottleMaterials.cap);
     const angle = (i / ribCount) * Math.PI * 2;
-    rib.position.set(Math.cos(angle) * 0.86, 0, Math.sin(angle) * 0.86);
+    rib.position.set(Math.cos(angle) * 0.37, 0, Math.sin(angle) * 0.37);
     rib.rotation.y = -angle;
     rib.castShadow = true;
     cap.add(rib);
   }
-  cap.position.y = 4.3;
+  cap.position.set(-0.7, 2.45, 0);
   scene.add(cap);
-  
-  // 4. Wrap-Around Label (slightly offset outward to prevent z-fighting)
-  const labelPoints = [];
-  // Label wraps from y = -2.6 to y = 1.6
-  const labelSteps = 40;
-  for (let i = 0; i <= labelSteps; i++) {
-    const y = -2.6 + (i / labelSteps) * 4.2;
-    const r = getBottleRadiusAtHeight(y) + 0.008; // small offset
-    labelPoints.push(new THREE.Vector2(r, y));
-  }
-  
-  // Back Label
-  const labelGeomBack = new THREE.LatheGeometry(labelPoints, segments, -Math.PI / 2, Math.PI);
-  labelGeomBack.scale(1, 1, 0.652);
-  labelBack = new THREE.Mesh(labelGeomBack, bottleMaterials.label);
-  labelBack.receiveShadow = true;
-  scene.add(labelBack);
-  
-  // Front Label
-  const labelGeomFront = new THREE.LatheGeometry(labelPoints, segments, Math.PI / 2, Math.PI);
-  labelGeomFront.scale(1, 1, 0.652);
-  
-  // Modify UV mapping of front/back label to align AI texture nicely
-  adjustLabelUVs(labelGeomBack, true);
-  adjustLabelUVs(labelGeomFront, false);
-  
+
+  // 6. Jerrycan Handle (curved tube on the top right side)
+  const handlePoints = [];
+  handlePoints.push(new THREE.Vector3(0.0, 2.1, 0.0));
+  handlePoints.push(new THREE.Vector3(0.3, 2.45, 0.0));
+  handlePoints.push(new THREE.Vector3(0.7, 2.45, 0.0));
+  handlePoints.push(new THREE.Vector3(0.9, 1.9, 0.0));
+
+  const handleCurve = new THREE.CatmullRomCurve3(handlePoints);
+  const handleGeom = new THREE.TubeGeometry(handleCurve, 20, 0.11, 12, false);
+  handleMesh = new THREE.Mesh(handleGeom, bottleMaterials.matte);
+  handleMesh.castShadow = true;
+  handleMesh.receiveShadow = true;
+  scene.add(handleMesh);
+
+  // 7. Labels (placed flat on front and back faces)
+  // Front Label: slides forward with frontGroup
+  const labelGeomFront = new THREE.PlaneGeometry(1.6, 2.8);
   labelFront = new THREE.Mesh(labelGeomFront, bottleMaterials.label);
+  labelFront.position.set(0, -0.3, 0.705); // slightly in front of Z = 0.7
   labelFront.castShadow = true;
   frontGroup.add(labelFront);
+
+  // Back Label: static, attached to the back of the jerrycan
+  const labelGeomBack = new THREE.PlaneGeometry(1.6, 2.8);
+  labelBack = new THREE.Mesh(labelGeomBack, bottleMaterials.label);
+  labelBack.position.set(0, -0.3, -0.705); // slightly behind Z = -0.7
+  labelBack.rotation.y = Math.PI; // flip face backwards
+  labelBack.receiveShadow = true;
+  scene.add(labelBack);
 }
 
 // Maps the texture maps specifically to fit the curved wrap-around
@@ -394,26 +435,51 @@ function buildOrganicLayers() {
   scene.add(particlesGroup);
   scene.add(wormsGroup);
   
-  const layerHeight = 6.6 / 10; // Total height 6.6 units (from -3.8 to 2.8)
+  // Custom helper to create rounded rectangle extrusion for a layer
+  function createLayerGeometry(width, depth, height, radius) {
+    const shape = new THREE.Shape();
+    // Draw 2D shape in XY plane
+    const w = width - radius * 2;
+    const h = depth - radius * 2;
+    const r = radius;
+    shape.moveTo(-w/2, -h/2 - r);
+    shape.lineTo(w/2, -h/2 - r);
+    shape.quadraticCurveTo(w/2 + r, -h/2 - r, w/2 + r, -h/2);
+    shape.lineTo(w/2 + r, h/2);
+    shape.quadraticCurveTo(w/2 + r, h/2 + r, w/2, h/2 + r);
+    shape.lineTo(-w/2, h/2 + r);
+    shape.quadraticCurveTo(-w/2 - r, h/2 + r, -w/2 - r, h/2);
+    shape.lineTo(-w/2 - r, -h/2);
+    shape.quadraticCurveTo(-w/2 - r, -h/2 - r, -w/2, -h/2 - r);
+
+    const extrudeSettings = {
+      steps: 1,
+      depth: height,
+      bevelEnabled: false // no bevel for flush layering
+    };
+    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geom.center();
+    // Rotate so extrusion direction is Y (vertical)
+    geom.rotateX(-Math.PI / 2);
+    return geom;
+  }
+
+  const layerHeight = 3.8 / 10; // 3.8 total height (from -1.9 to 1.9)
   
   for (let i = 0; i < 10; i++) {
-    const yMin = -3.8 + i * layerHeight;
+    const yMin = -1.9 + i * layerHeight;
     const yMax = yMin + layerHeight;
     const yCenter = yMin + (layerHeight / 2);
     
-    // Get corresponding radius for cylinder
-    const rBottom = getBottleRadiusAtHeight(yMin) - 0.04;
-    const rTop = getBottleRadiusAtHeight(yMax) - 0.04;
-    
-    // Build segment cylinder
-    const layerGeom = new THREE.CylinderGeometry(rTop, rBottom, layerHeight, 32);
-    layerGeom.scale(1, 1, 0.64); // match flat shape
+    // jerrycan inner cavity dimensions: width 2.2, depth 1.2.
+    // layers should be slightly smaller: width 2.05, depth 1.15
+    const layerGeom = createLayerGeometry(2.05, 1.15, layerHeight, 0.1);
     
     const textures = createOrganicTexture(i);
     const layerMat = new THREE.MeshStandardMaterial({
       map: textures.map,
       bumpMap: textures.bumpMap,
-      bumpScale: 0.08,
+      bumpScale: 0.06,
       roughness: 0.9,
       transparent: true,
       opacity: 0.95
@@ -430,25 +496,20 @@ function buildOrganicLayers() {
     compostLayers.push(layerMesh);
     
     // Populate layer with scattered details
-    scatterLayerParticles(i, yMin, yMax, rBottom, rTop);
+    scatterLayerParticles(i, yMin, yMax);
   }
 }
 
 // Scatters customized 3D meshes on the front face of each layer
-function scatterLayerParticles(layerIdx, yMin, yMax, rBot, rTop) {
+function scatterLayerParticles(layerIdx, yMin, yMax) {
   const pCount = [35, 45, 30, 25, 45, 80, 20, 25, 30, 35][layerIdx];
   
   for (let k = 0; k < pCount; k++) {
+    // Scatter inside a box (width = 2.05, depth = 1.15)
     // Constrain random positions near the front face (Z > 0) to be visible during cutaway
-    const theta = Math.random() * Math.PI; // 0 to 180 degrees (front hemisphere)
-    const radFactor = 0.5 + Math.random() * 0.45; // keep towards outer boundary
-    
-    const hFactor = Math.random();
-    const y = yMin + hFactor * (yMax - yMin);
-    const r = THREE.MathUtils.lerp(rBot, rTop, hFactor) * radFactor;
-    
-    const x = Math.cos(theta) * r;
-    const z = Math.sin(theta) * r * 0.64; // match Z-squash
+    const x = (Math.random() - 0.5) * 1.8;
+    const z = Math.random() * 0.52; // front hemisphere (Z: 0 to 0.52)
+    const y = yMin + Math.random() * (yMax - yMin);
     
     let geom, mat, mesh;
     
@@ -920,6 +981,7 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
+  renderer.localClippingEnabled = true;
   
   // 4. Controls
   controls = new OrbitControls(camera, renderer.domElement);
@@ -1145,7 +1207,13 @@ function setupUIBindings() {
       newMat.transparent = (matName === 'green' || matName === 'amber' || state.cutawayProgress > 0.05);
       
       bottleBack.material = newMat;
-      bottleFront.material = newMat;
+      bottleBack.material.clippingPlanes = [clipPlaneBack];
+      
+      bottleFront.material = newMat.clone();
+      bottleFront.material.clippingPlanes = [clipPlaneFront];
+      
+      if (neck) neck.material = newMat;
+      if (handleMesh) handleMesh.material = newMat;
     });
   });
 
@@ -1179,6 +1247,8 @@ function animate() {
     const rotSpeed = 0.08;
     // Rotate all bottle and layer elements uniformly
     bottleBack.rotation.y = elapsedTime * rotSpeed;
+    if (neck) neck.rotation.y = elapsedTime * rotSpeed;
+    if (handleMesh) handleMesh.rotation.y = elapsedTime * rotSpeed;
     cap.rotation.y = elapsedTime * rotSpeed;
     labelBack.rotation.y = elapsedTime * rotSpeed;
     layersGroup.rotation.y = elapsedTime * rotSpeed;
@@ -1191,6 +1261,8 @@ function animate() {
     // If autoRotate is disabled, synchronize rotation coordinates (controls override)
     // To ensure frontGroup and backGroup align perfectly when user manually drags
     const currentRot = bottleBack.rotation.y;
+    if (neck) neck.rotation.y = currentRot;
+    if (handleMesh) handleMesh.rotation.y = currentRot;
     cap.rotation.y = currentRot;
     labelBack.rotation.y = currentRot;
     layersGroup.rotation.y = currentRot;
@@ -1202,7 +1274,13 @@ function animate() {
   // 2. Wiggle worms
   animateWorms(elapsedTime);
 
-  // 3. Update Controls and Render
+  // 3. Update clipping planes to follow the bottle's rotation & position
+  bottleBack.updateMatrixWorld();
+  bottleFront.updateMatrixWorld();
+  clipPlaneBack.copy(localPlaneBack).applyMatrix4(bottleBack.matrixWorld);
+  clipPlaneFront.copy(localPlaneFront).applyMatrix4(bottleFront.matrixWorld);
+
+  // 4. Update Controls and Render
   controls.update();
   renderer.render(scene, camera);
 }
