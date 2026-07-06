@@ -293,39 +293,41 @@ function initMaterials(labelTexture) {
 // ==========================================================================
 
 function buildBottle() {
-  // Helpers to draw rounded rectangle in 2D
-  function createRoundedRectShape(w, h, r) {
-    const shape = new THREE.Shape();
-    shape.moveTo(-w/2 + r, -h/2);
-    shape.lineTo(w/2 - r, -h/2);
-    shape.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + r);
-    shape.lineTo(w/2, h/2 - r);
-    shape.quadraticCurveTo(w/2, h/2, w/2 - r, h/2);
-    shape.lineTo(-w/2 + r, h/2);
-    shape.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - r);
-    shape.lineTo(-w/2, -h/2 + r);
-    shape.quadraticCurveTo(-w/2, -h/2, -w/2 + r, -h/2);
-    return shape;
+  const points = [];
+  const segments = 64;
+  const profileSteps = 80;
+  
+  // Define profile curve for circular timbo with grooves
+  for (let i = 0; i <= profileSteps; i++) {
+    const y = -2.1 + (i / profileSteps) * 4.2;
+    let r = 1.15; // Base radius for circular timbo
+    
+    // Base curve
+    if (y < -1.9) {
+      const t = (y + 2.1) / 0.2;
+      r = THREE.MathUtils.lerp(0.95, 1.15, t);
+    }
+    // Shoulder curve
+    else if (y > 1.9) {
+      const t = (2.1 - y) / 0.2;
+      r = THREE.MathUtils.lerp(0.85, 1.15, t);
+    }
+    // Grooves/Ribs
+    // Groove 1 (Bottom half)
+    else if (y > -1.0 && y < -0.8) {
+      const t = Math.abs(y - (-0.9)) / 0.1;
+      r = THREE.MathUtils.lerp(1.08, 1.15, t);
+    }
+    // Groove 2 (Top half)
+    else if (y > 0.8 && y < 1.0) {
+      const t = Math.abs(y - 0.9) / 0.1;
+      r = THREE.MathUtils.lerp(1.08, 1.15, t);
+    }
+    
+    points.push(new THREE.Vector2(r, y));
   }
-
-  function createJerrycanGeometry(w, h, d, r) {
-    const shape = createRoundedRectShape(w, h, r);
-    const extrudeSettings = {
-      steps: 1,
-      depth: d - r * 2,
-      bevelEnabled: true,
-      bevelThickness: r,
-      bevelSize: r,
-      bevelOffset: 0,
-      bevelSegments: 4
-    };
-    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    geom.center();
-    return geom;
-  }
-
-  // 1. Jerrycan Body Geometry (dimensions: width = 2.4, height = 4.2, depth = 1.4, radius = 0.15)
-  const geomBody = createJerrycanGeometry(2.4, 4.2, 1.4, 0.15);
+  
+  const geomBody = new THREE.LatheGeometry(points, segments);
 
   // 2. Back Jerrycan Shell (uses clipPlaneBack)
   bottleBack = new THREE.Mesh(geomBody, bottleMaterials.matte);
@@ -345,16 +347,16 @@ function buildBottle() {
   frontGroup.add(bottleFront);
   scene.add(frontGroup);
 
-  // 4. Asymmetric Spout / Neck (shifted to the left at x = -0.7)
-  neck = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.4, 32), bottleMaterials.matte);
-  neck.position.set(-0.7, 2.2, 0);
+  // 4. Asymmetric Spout / Neck (shifted to the left at x = -0.5)
+  neck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.4, 32), bottleMaterials.matte);
+  neck.position.set(-0.5, 2.2, 0);
   neck.castShadow = true;
   neck.receiveShadow = true;
   scene.add(neck);
 
-  // 5. Large dark green Screw Cap (sits on top of the spout at x = -0.7)
+  // 5. Large dark green Screw Cap (sits on top of the spout at x = -0.5)
   cap = new THREE.Group();
-  const capBaseGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.35, 32);
+  const capBaseGeom = new THREE.CylinderGeometry(0.33, 0.33, 0.35, 32);
   const capBase = new THREE.Mesh(capBaseGeom, bottleMaterials.cap);
   capBase.castShadow = true;
   cap.add(capBase);
@@ -365,43 +367,42 @@ function buildBottle() {
   for (let i = 0; i < ribCount; i++) {
     const rib = new THREE.Mesh(ribGeom, bottleMaterials.cap);
     const angle = (i / ribCount) * Math.PI * 2;
-    rib.position.set(Math.cos(angle) * 0.37, 0, Math.sin(angle) * 0.37);
+    rib.position.set(Math.cos(angle) * 0.34, 0, Math.sin(angle) * 0.34);
     rib.rotation.y = -angle;
     rib.castShadow = true;
     cap.add(rib);
   }
-  cap.position.set(-0.7, 2.45, 0);
+  cap.position.set(-0.5, 2.45, 0);
   scene.add(cap);
 
-  // 6. Jerrycan Handle (curved tube on the top right side)
+  // 6. Jerrycan Handle (loop handle on the top right side along the Z axis)
   const handlePoints = [];
-  handlePoints.push(new THREE.Vector3(0.0, 2.1, 0.0));
-  handlePoints.push(new THREE.Vector3(0.3, 2.45, 0.0));
-  handlePoints.push(new THREE.Vector3(0.7, 2.45, 0.0));
-  handlePoints.push(new THREE.Vector3(0.9, 1.9, 0.0));
+  handlePoints.push(new THREE.Vector3(0.4, 2.1, -0.4));
+  handlePoints.push(new THREE.Vector3(0.4, 2.42, -0.2));
+  handlePoints.push(new THREE.Vector3(0.4, 2.42, 0.2));
+  handlePoints.push(new THREE.Vector3(0.4, 2.1, 0.4));
 
   const handleCurve = new THREE.CatmullRomCurve3(handlePoints);
-  const handleGeom = new THREE.TubeGeometry(handleCurve, 20, 0.11, 12, false);
+  const handleGeom = new THREE.TubeGeometry(handleCurve, 20, 0.09, 12, false);
   handleMesh = new THREE.Mesh(handleGeom, bottleMaterials.matte);
   handleMesh.castShadow = true;
   handleMesh.receiveShadow = true;
   scene.add(handleMesh);
 
-  // 7. Labels (placed flat on front and back faces)
-  // Front Label: slides forward with frontGroup
-  const labelGeomFront = new THREE.PlaneGeometry(1.6, 2.8);
-  labelFront = new THREE.Mesh(labelGeomFront, bottleMaterials.label);
-  labelFront.position.set(0, -0.3, 0.705); // slightly in front of Z = 0.7
-  labelFront.castShadow = true;
-  frontGroup.add(labelFront);
-
-  // Back Label: static, attached to the back of the jerrycan
-  const labelGeomBack = new THREE.PlaneGeometry(1.6, 2.8);
+  // 7. Labels (wrap-around cylinder sections mapped to front/back)
+  // Back Label
+  const labelGeomBack = new THREE.CylinderGeometry(1.155, 1.155, 1.8, 64, 1, true, -Math.PI / 2, Math.PI);
+  adjustLabelUVs(labelGeomBack, true);
   labelBack = new THREE.Mesh(labelGeomBack, bottleMaterials.label);
-  labelBack.position.set(0, -0.3, -0.705); // slightly behind Z = -0.7
-  labelBack.rotation.y = Math.PI; // flip face backwards
   labelBack.receiveShadow = true;
   scene.add(labelBack);
+  
+  // Front Label
+  const labelGeomFront = new THREE.CylinderGeometry(1.155, 1.155, 1.8, 64, 1, true, Math.PI / 2, Math.PI);
+  adjustLabelUVs(labelGeomFront, false);
+  labelFront = new THREE.Mesh(labelGeomFront, bottleMaterials.label);
+  labelFront.castShadow = true;
+  frontGroup.add(labelFront);
 }
 
 // Maps the texture maps specifically to fit the curved wrap-around
